@@ -5,9 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
-import android.util.Log;
 
 import com.squeezymo.tedviewer.R;
 import com.sun.syndication.feed.module.mediarss.MediaEntryModule;
@@ -48,31 +46,24 @@ public class TedClient {
         Runnable downloader = new Runnable() {
             @Override
             public void run() {
-                Looper.prepare();
+                if (!hasConnection(callback, context)) {
+                    return;
+                }
 
                 try {
-                    if (!hasConnectivity(callback, context)) {
-                        return;
-                    }
+                    SyndFeedInput input = new SyndFeedInput();
+                    SyndFeed feed = input.build(new XmlReader(new URL("http://www.ted.com/themes/rss/id/6")));
 
-                    try {
-                        SyndFeedInput input = new SyndFeedInput();
-                        SyndFeed feed = input.build(new XmlReader(new URL("http://www.ted.com/themes/rss/id/6")));
-
-                        if (callback != null) {
-                            Message.obtain(callback, MSG_FEED_RETRIEVED, feed).sendToTarget();
-                        }
-                    }
-                    catch (IOException|FeedException e) {
-                        // TODO handle e
-
-                        if (callback != null) {
-                            Message.obtain(callback, MSG_ERR, e).sendToTarget();
-                        }
+                    if (callback != null) {
+                        Message.obtain(callback, MSG_FEED_RETRIEVED, feed).sendToTarget();
                     }
                 }
-                finally {
-                    Looper.loop();
+                catch (IOException|FeedException e) {
+                    // TODO handle e
+
+                    if (callback != null) {
+                        Message.obtain(callback, MSG_ERR, e).sendToTarget();
+                    }
                 }
             }
         };
@@ -105,31 +96,24 @@ public class TedClient {
             Runnable downloader = new Runnable() {
                 @Override
                 public void run() {
-                    Looper.prepare();
+                    Thumbnail thumbnail = getThumbnail(entry);
+                    if (thumbnail == null)
+                        return;
 
-                    try {
-                        Thumbnail thumbnail = getThumbnail(entry);
-                        if (thumbnail == null)
-                            return;
+                    if (!hasConnection(callback, context))
+                        return;
 
-                        if (!hasConnectivity(callback, context))
-                            return;
+                    try (InputStream stream = thumbnail.getUrl().toURL().openConnection().getInputStream()) {
+                        Bitmap bitmap = BitmapFactory.decodeStream(stream);
+                        bitmap = Bitmap.createScaledBitmap(bitmap, 150, 150, false);
+                        sThumbnailByUri.put(entry.getUri(), bitmap);
 
-                        try (InputStream stream = thumbnail.getUrl().toURL().openConnection().getInputStream()) {
-                            Bitmap bitmap = BitmapFactory.decodeStream(stream);
-                            bitmap = Bitmap.createScaledBitmap(bitmap, 150, 150, false);
-                            sThumbnailByUri.put(entry.getUri(), bitmap);
-
-                            if (callback != null) {
-                                Message.obtain(callback, MSG_IMG_UPDATED, entry).sendToTarget();
-                            }
-                        } catch (IOException e) {
-                            // TODO handle e
-                            e.printStackTrace();
+                        if (callback != null) {
+                            Message.obtain(callback, MSG_IMG_UPDATED, entry).sendToTarget();
                         }
-                    }
-                    finally {
-                        Looper.loop();
+                    } catch (IOException e) {
+                        // TODO handle e
+                        e.printStackTrace();
                     }
                 }
             };
@@ -208,7 +192,7 @@ public class TedClient {
         }
     }
 
-    public static boolean hasConnectivity(final Handler callback, final Context context) {
+    public static boolean hasConnection(final Handler callback, final Context context) {
         ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 
         if ( connectivityManager.getActiveNetworkInfo() == null ||
