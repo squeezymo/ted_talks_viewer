@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">TED Talks Viewer</string>
+
+    <string name="fetch_feed">Fetch feed!</string>
+
+    <string name="dialog_quality">Bitrates available:</string>
+    <string name="dialog_quality_option">%1$skbps (%2$s)</string>
+
+    <string name="result_no_connection">Internet connection is unavailable</string>
+    <string name="result_error">Unknown error occurred</string>
+</resources>
